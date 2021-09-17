@@ -8,27 +8,20 @@
 import SwiftUI
 
 struct MemoryGameView: View {
-    @ObservedObject var viewModel: EmojiMemoryGame
+    @ObservedObject var game: EmojiMemoryGame
     
     var body: some View {
         
         VStack {
             VStack {
-                Text(viewModel.theme.name)
+                Text(game.theme.name)
                     .font(.largeTitle)
-                Text("Score: " + viewModel.score)
+                Text("Score: " + game.score)
             }
-            ScrollView {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 65))]) {
-                    ForEach(viewModel.cards) { card in
-                        CardView(card: card)
-                            .aspectRatio(2/3, contentMode: .fit)
-                            .onTapGesture {
-                                viewModel.choose(card)
-                            }
-                    }
-                }
-            }
+            
+            AspectVGrid(items: game.cards, aspectRatio: 2/3, content: { card in
+                cardView(for: card)
+            })
             .foregroundColor(.green)
             .padding(.horizontal)
             Spacer()
@@ -36,10 +29,23 @@ struct MemoryGameView: View {
             Spacer()
         }
     }
-    // 10. add new game button
+
+    @ViewBuilder
+    private func cardView(for card: EmojiMemoryGame.Card) -> some View {
+        if card.isMatched && !card.isFaceUp {
+            Rectangle().opacity(0)
+        } else {
+            CardView(card: card)
+                .padding(4)
+                .onTapGesture {
+                    game.choose(card)
+                }
+        }
+    }
+    
     var newGameButton: some View {
         Button(action: {
-            viewModel.newGame()
+            game.newGame()
         }, label: {
           Text("New Game")
             .foregroundColor(.black)
@@ -52,18 +58,30 @@ struct CardView: View {
     var card: MemoryGame<String>.Card
     
     var body: some View {
-        ZStack {
-            let shape = RoundedRectangle(cornerRadius: 20)
-            if card.isFaceUp {
-                shape.fill().foregroundColor(.white)
-                shape.stroke(lineWidth: 3)
-                Text(card.content).font(.largeTitle)
-            } else if card.isMatched {
-                shape.opacity(0)
-            } else {
-                shape.fill()
+        GeometryReader { geometry in
+            ZStack {
+                let shape = RoundedRectangle(cornerRadius: DrawingConstants.cornerRadius)
+                if card.isFaceUp {
+                    shape.fill().foregroundColor(.white)
+                    shape.stroke(lineWidth: DrawingConstants.lineWidth)
+                    Text(card.content).font(font(in: geometry.size))
+                } else if card.isMatched {
+                    shape.opacity(0)
+                } else {
+                    shape.fill()
+                }
             }
         }
+    }
+    
+    private func font(in size: CGSize) -> Font {
+        Font.system(size: min(size.width, size.height) * DrawingConstants.fontScale)
+    }
+
+    private struct DrawingConstants {
+        static let cornerRadius: CGFloat = 10
+        static let lineWidth: CGFloat = 3
+        static let fontScale: CGFloat = 0.75
     }
 }
 
@@ -84,6 +102,6 @@ struct RoundedRectangleButtonStyle: ButtonStyle {
 struct MemoryGameView_Previews: PreviewProvider {
     static var previews: some View {
         let game = EmojiMemoryGame()
-        MemoryGameView(viewModel: game)
+        MemoryGameView(game: game)
     }
 }
